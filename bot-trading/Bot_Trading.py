@@ -172,6 +172,9 @@ while True:
     except Exception as e:
         print("❌ Lỗi:", e)
 
+    # Chờ đến đúng mốc nến 5 phút
     now = int(time.time())
-    sleep_time = INTERVAL_SECONDS - (now % INTERVAL_SECONDS) + 1
-    time.sleep(sleep_time)
+    wait_time = INTERVAL_SECONDS - (now % INTERVAL_SECONDS) + 1
+    print(f"⏳ Đang chờ đến mốc 5 phút tiếp theo ({wait_time} giây)...")
+    time.sleep(wait_time)
+
