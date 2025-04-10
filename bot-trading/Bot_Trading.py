@@ -6,6 +6,7 @@ from ta.volatility import BollingerBands
 from ta.trend import EMAIndicator, SMAIndicator, ADXIndicator
 from ta.momentum import RSIIndicator
 from dotenv import load_dotenv
+from decimal import Decimal
 import os
 
 # 🛠️ Thêm dòng này để định nghĩa loại lệnh trailing stop
