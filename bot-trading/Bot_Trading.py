@@ -26,7 +26,7 @@ risk_percent = 10
 max_open_trades = 10
 sl_pct = 1.0
 tp_pct = 6.0
-trailing_start = 0.015
+trailing_start = 0.01
 trailing_buffer = 0.0075
 
 def get_klines(symbol, interval, limit=100):
@@ -83,7 +83,7 @@ def check_conditions(df):
     # Các điều kiện breakout
     candle_bullish = latest['close'] > latest['open'] and previous['close'] < previous['open']
     candle_bearish = latest['close'] < latest['open'] and previous['close'] > previous['open']
-    super_volume = latest['volume'] > df['volume'].rolling(20).mean().iloc[-1] * 1.5
+    super_volume = latest['volume'] > df['volume'].rolling(20).mean().iloc[-1] * 1.2
     adx_filter = latest['adx'] > 15
 
     trend_up = latest['close'] > latest['ma200']
