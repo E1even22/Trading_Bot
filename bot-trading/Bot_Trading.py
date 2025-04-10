@@ -65,9 +65,12 @@ def calculate_quantity(entry_price):
     return round(quantity, 3)
 
 def get_open_position_count(symbol):
-    position = client.futures_position_information(symbol=symbol)[0]
-    amt = float(position['positionAmt'])
-    return 1 if amt != 0 else 0
+    positions = client.futures_position_information(symbol=symbol)
+    for p in positions:
+        if p['symbol'] == symbol:
+            amt = float(p['positionAmt'])
+            return 1 if amt != 0 else 0
+    return 0  # Không tìm thấy vị thế cho symbol
 
 def check_conditions(df):
     if len(df) < 200:  # đảm bảo có đủ dữ liệu để tính các indicator dài nhất (SMA200)
