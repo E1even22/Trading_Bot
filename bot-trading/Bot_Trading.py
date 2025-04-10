@@ -121,7 +121,7 @@ def check_conditions(df):
     ema_cross_up = latest['ema20'] > latest['ema100'] and df['ema20'].iloc[-2] < df['ema100'].iloc[-2] and latest['rsi'] > 50
     ema_cross_down = latest['ema20'] < latest['ema100'] and df['ema20'].iloc[-2] > df['ema100'].iloc[-2] and latest['rsi'] < 50
     rsi_extreme_long = latest['rsi'] < 40 and trend_up
-    rsi_extreme_short = latest['rsi'] > 6 0 and trend_down
+    rsi_extreme_short = latest['rsi'] > 60 and trend_down
 
     long_condition = breakout_up or ema_cross_up or rsi_extreme_long
     short_condition = breakout_down or ema_cross_down or rsi_extreme_short
