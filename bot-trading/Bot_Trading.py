@@ -12,21 +12,20 @@ import os
 load_dotenv()
 api_key = os.getenv('API_KEY')
 api_secret = os.getenv('API_SECRET')
-
 client = Client(api_key, api_secret, testnet=True)
 
 # === Cấu hình chiến lược ===
 symbol = "BTCUSDT"
 interval = "5m"
-INTERVAL_SECONDS = 300  # 5 phút
-SLEEP_BUFFER = 5        # buffer an toàn
+INTERVAL_SECONDS = 300
+SLEEP_BUFFER = 5
 initial_capital = 10
 leverage = 20
 risk_percent = 10
 max_open_trades = 10
-sl_pct = 1.0
-tp_pct = 6.0
-trailing_start = 0.01
+sl_pct = 0.02
+tp_pct = 0.06
+trailing_start = 0.015
 trailing_buffer = 0.0075
 
 def get_klines(symbol, interval, limit=100):
@@ -60,7 +59,7 @@ def calculate_indicators(df):
 
 def calculate_quantity(entry_price):
     trade_risk = initial_capital * (risk_percent / 100)
-    position_size = trade_risk / (sl_pct)
+    position_size = trade_risk / sl_pct
     quantity = position_size * leverage / entry_price
     return round(quantity, 3)
 
@@ -70,42 +69,37 @@ def get_open_position_count(symbol):
         if p['symbol'] == symbol:
             amt = float(p['positionAmt'])
             return 1 if amt != 0 else 0
-    return 0  # Không tìm thấy vị thế cho symbol
+    return 0
 
 def check_conditions(df):
-    if len(df) < 200:  # đảm bảo có đủ dữ liệu để tính các indicator dài nhất (SMA200)
-        print(f"❗ Không đủ dữ liệu để kiểm tra điều kiện (hiện tại chỉ có {len(df)} dòng).")
+    if len(df) < 200:
+        print(f"❗ Không đủ dữ liệu (hiện tại chỉ có {len(df)} dòng).")
         return False, False
 
     latest = df.iloc[-1]
     previous = df.iloc[-2]
 
-    # Các điều kiện breakout
     candle_bullish = latest['close'] > latest['open'] and previous['close'] < previous['open']
     candle_bearish = latest['close'] < latest['open'] and previous['close'] > previous['open']
     super_volume = latest['volume'] > df['volume'].rolling(20).mean().iloc[-1] * 1.2
     adx_filter = latest['adx'] > 15
-
     trend_up = latest['close'] > latest['ma200']
     trend_down = latest['close'] < latest['ma200']
 
     breakout_up = latest['close'] > latest['bb_upper'] and candle_bullish and super_volume and adx_filter
     breakout_down = latest['close'] < latest['bb_lower'] and candle_bearish and super_volume and adx_filter
-
     ema_cross_up = latest['ema20'] > latest['ema100'] and df['ema20'].iloc[-2] < df['ema100'].iloc[-2] and latest['rsi'] > 50
     ema_cross_down = latest['ema20'] < latest['ema100'] and df['ema20'].iloc[-2] > df['ema100'].iloc[-2] and latest['rsi'] < 50
-
     rsi_extreme_long = latest['rsi'] < 30 and trend_up
     rsi_extreme_short = latest['rsi'] > 70 and trend_down
 
     long_condition = breakout_up or ema_cross_up or rsi_extreme_long
     short_condition = breakout_down or ema_cross_down or rsi_extreme_short
 
-    # Debug log
-    print(f"\n📊 latest_close: {latest['close']}, bb_upper: {latest['bb_upper']}, bb_lower: {latest['bb_lower']}")
+    print(f"\n📊 Close: {latest['close']}, BB_up: {latest['bb_upper']}, BB_low: {latest['bb_lower']}")
     print(f"📈 breakout_up: {breakout_up}, breakout_down: {breakout_down}")
     print(f"💥 super_volume: {super_volume}, adx_filter: {adx_filter}")
-    print(f"📊 ema_cross_up: {ema_cross_up}, ema_cross_down: {ema_cross_down}")
+    print(f"📊 EMA cross up/down: {ema_cross_up}/{ema_cross_down}")
     print(f"💡 RSI: {latest['rsi']} | RSI long: {rsi_extreme_long} | RSI short: {rsi_extreme_short}")
     print(f"============================")
 
@@ -113,40 +107,44 @@ def check_conditions(df):
 
 def place_order(direction, entry_price):
     quantity = calculate_quantity(entry_price)
-    sl_price = entry_price * (1 - sl_pct) if direction == "LONG" else entry_price * (1 + sl_pct)
-    tp_price = entry_price * (1 + tp_pct) if direction == "LONG" else entry_price * (1 - tp_pct)
-
     side = SIDE_BUY if direction == "LONG" else SIDE_SELL
     opposite_side = SIDE_SELL if direction == "LONG" else SIDE_BUY
 
-    print(f"[ORDER] {direction} | Entry: {entry_price}, SL: {sl_price}, TP: {tp_price}, Qty: {quantity}")
+    print(f"[ORDER] {direction} | Entry: {entry_price}, Qty: {quantity}")
 
     # Lệnh thị trường
-    order = client.futures_create_order(
+    client.futures_create_order(
         symbol=symbol,
         side=side,
         type=ORDER_TYPE_MARKET,
         quantity=quantity
     )
 
-    # Dừng lỗ
+    # Trailing stop thay vì dừng lỗ tĩnh
+    trailing_stop_callback = round(trailing_buffer * 100, 1)  # Binance yêu cầu callbackRate từ 0.1 đến 5%
+    activation_price = entry_price * (1 + trailing_start) if direction == "LONG" else entry_price * (1 - trailing_start)
+
     client.futures_create_order(
         symbol=symbol,
         side=opposite_side,
-        type=ORDER_TYPE_STOP_MARKET,
-        stopPrice=round(sl_price, 2),
-        closePosition=True,
-        timeInForce=TIME_IN_FORCE_GTC
+        type=ORDER_TYPE_TRAILING_STOP_MARKET,
+        quantity=quantity,
+        activationPrice=round(activation_price, 2),
+        callbackRate=trailing_stop_callback,
+        timeInForce=TIME_IN_FORCE_GTC,
+        reduceOnly=True
     )
 
-    # Chốt lời
+    # Lệnh chốt lời
+    tp_price = entry_price * (1 + tp_pct) if direction == "LONG" else entry_price * (1 - tp_pct)
     client.futures_create_order(
         symbol=symbol,
         side=opposite_side,
         type=ORDER_TYPE_LIMIT,
         price=round(tp_price, 2),
-        closePosition=True,
-        timeInForce=TIME_IN_FORCE_GTC
+        quantity=quantity,
+        timeInForce=TIME_IN_FORCE_GTC,
+        reduceOnly=True
     )
 
 # === Vòng lặp chính ===
@@ -173,9 +171,7 @@ while True:
     except Exception as e:
         print("❌ Lỗi:", e)
 
-    # Chờ đến đúng mốc nến 5 phút
     now = int(time.time())
     wait_time = INTERVAL_SECONDS - (now % INTERVAL_SECONDS) + 1
-    print(f"⏳ Đang chờ đến mốc 5 phút tiếp theo ({wait_time} giây)...")
+    print(f"⏳ Chờ đến mốc nến 5 phút tiếp theo ({wait_time} giây)...")
     time.sleep(wait_time)
-
