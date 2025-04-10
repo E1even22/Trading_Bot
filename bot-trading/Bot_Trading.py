@@ -7,6 +7,7 @@ from ta.trend import EMAIndicator, SMAIndicator, ADXIndicator
 from ta.momentum import RSIIndicator
 from dotenv import load_dotenv
 from decimal import Decimal
+from binance.um_futures import UMFutures
 import os
 
 # 🛠️ Thêm dòng này để định nghĩa loại lệnh trailing stop
