@@ -24,8 +24,8 @@ initial_capital = 10
 leverage = 20
 risk_percent = 10
 max_open_trades = 10
-sl_pct = 0.02
-tp_pct = 0.06
+sl_pct = 1.0
+tp_pct = 6.0
 trailing_start = 0.015
 trailing_buffer = 0.0075
 
