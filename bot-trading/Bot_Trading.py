@@ -207,4 +207,3 @@ while True:
     wait_time = INTERVAL_SECONDS - (now % INTERVAL_SECONDS) + 1
     print(f"⏳ Chờ đến mốc nến 5 phút tiếp theo ({wait_time} giây)...")
     time.sleep(wait_time)
-đoạn python này nên dùng cách nào là tốt nhất
