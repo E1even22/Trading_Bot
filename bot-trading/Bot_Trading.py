@@ -111,8 +111,8 @@ def check_conditions(df):
 
     candle_bullish = latest['close'] > latest['open'] and previous['close'] < previous['open']
     candle_bearish = latest['close'] < latest['open'] and previous['close'] > previous['open']
-    super_volume = latest['volume'] > df['volume'].rolling(20).mean().iloc[-1] * 1.2
-    adx_filter = latest['adx'] > 15
+    super_volume = latest['volume'] > df['volume'].rolling(20).mean().iloc[-1] * 1.0
+    adx_filter = latest['adx'] > 10
     trend_up = latest['close'] > latest['ma200']
     trend_down = latest['close'] < latest['ma200']
 
@@ -120,8 +120,8 @@ def check_conditions(df):
     breakout_down = latest['close'] < latest['bb_lower'] and candle_bearish and super_volume and adx_filter
     ema_cross_up = latest['ema20'] > latest['ema100'] and df['ema20'].iloc[-2] < df['ema100'].iloc[-2] and latest['rsi'] > 50
     ema_cross_down = latest['ema20'] < latest['ema100'] and df['ema20'].iloc[-2] > df['ema100'].iloc[-2] and latest['rsi'] < 50
-    rsi_extreme_long = latest['rsi'] < 30 and trend_up
-    rsi_extreme_short = latest['rsi'] > 70 and trend_down
+    rsi_extreme_long = latest['rsi'] < 40 and trend_up
+    rsi_extreme_short = latest['rsi'] > 6 0 and trend_down
 
     long_condition = breakout_up or ema_cross_up or rsi_extreme_long
     short_condition = breakout_down or ema_cross_down or rsi_extreme_short
