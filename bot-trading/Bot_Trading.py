@@ -65,38 +65,39 @@ def calculate_quantity(entry_price):
     return round(quantity, 3)
 
 def get_open_position_count(symbol):
-    positions = client.futures_position_information(symbol=symbol)
-    return sum(1 for p in positions if float(p['positionAmt']) != 0)
+    position = client.futures_position_information(symbol=symbol)[0]
+    amt = float(position['positionAmt'])
+    return 1 if amt != 0 else 0
 
 def check_conditions(df):
     latest = df.iloc[-1]
     previous = df.iloc[-2]
 
-    # Các điều kiện breakout
     candle_bullish = latest['close'] > latest['open'] and previous['close'] < previous['open']
     candle_bearish = latest['close'] < latest['open'] and previous['close'] > previous['open']
     super_volume = latest['volume'] > df['volume'].rolling(20).mean().iloc[-1] * 1.5
     adx_filter = latest['adx'] > 15
-
     trend_up = latest['close'] > latest['ma200']
     trend_down = latest['close'] < latest['ma200']
-
-    # Điều kiện breakout có thể nới lỏng để dễ vào hơn
     breakout_up = latest['close'] > latest['bb_upper'] and candle_bullish and super_volume and adx_filter
     breakout_down = latest['close'] < latest['bb_lower'] and candle_bearish and super_volume and adx_filter
-
-    # Điều kiện phụ có thể thêm vào hoặc bỏ bớt tùy ý
     ema_cross_up = latest['ema20'] > latest['ema100'] and df['ema20'].iloc[-2] < df['ema100'].iloc[-2] and latest['rsi'] > 50
     ema_cross_down = latest['ema20'] < latest['ema100'] and df['ema20'].iloc[-2] > df['ema100'].iloc[-2] and latest['rsi'] < 50
-
-    # Tín hiệu mạnh từ RSI cực đoan có thể bị bỏ bớt hoặc nới lỏng điều kiện
     rsi_extreme_long = latest['rsi'] < 30 and trend_up
     rsi_extreme_short = latest['rsi'] > 70 and trend_down
+
+    # Log chi tiết
+    print(f"📊 latest_close: {latest['close']}, bb_upper: {latest['bb_upper']}, bb_lower: {latest['bb_lower']}")
+    print(f"📈 breakout_up: {breakout_up}, breakout_down: {breakout_down}")
+    print(f"💥 super_volume: {super_volume}, adx_filter: {adx_filter}")
+    print(f"📊 ema_cross_up: {ema_cross_up}, ema_cross_down: {ema_cross_down}")
+    print(f"💡 RSI: {latest['rsi']} | RSI long: {rsi_extreme_long} | RSI short: {rsi_extreme_short}")
 
     long_condition = breakout_up or ema_cross_up or rsi_extreme_long
     short_condition = breakout_down or ema_cross_down or rsi_extreme_short
 
     return long_condition, short_condition
+
 
 def place_order(direction, entry_price):
     quantity = calculate_quantity(entry_price)
@@ -139,7 +140,7 @@ def place_order(direction, entry_price):
 # === Vòng lặp chính ===
 while True:
     try:
-        df = get_klines(symbol, interval)
+        df = get_klines(symbol, interval, limit=250)
         df = calculate_indicators(df)
         long_cond, short_cond = check_conditions(df)
         current_price = df['close'].iloc[-1]
@@ -160,4 +161,6 @@ while True:
     except Exception as e:
         print("❌ Lỗi:", e)
 
-    time.sleep(INTERVAL_SECONDS - SLEEP_BUFFER)
+    now = int(time.time())
+    sleep_time = INTERVAL_SECONDS - (now % INTERVAL_SECONDS) + 1
+    time.sleep(sleep_time)
