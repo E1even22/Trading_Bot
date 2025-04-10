@@ -3,3 +3,4 @@ ta
 pandas
 python-dotenv
 numpy
+binance-futures-connector
