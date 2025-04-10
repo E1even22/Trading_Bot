@@ -70,34 +70,42 @@ def get_open_position_count(symbol):
     return 1 if amt != 0 else 0
 
 def check_conditions(df):
+    if len(df) < 200:  # đảm bảo có đủ dữ liệu để tính các indicator dài nhất (SMA200)
+        print(f"❗ Không đủ dữ liệu để kiểm tra điều kiện (hiện tại chỉ có {len(df)} dòng).")
+        return False, False
+
     latest = df.iloc[-1]
     previous = df.iloc[-2]
 
+    # Các điều kiện breakout
     candle_bullish = latest['close'] > latest['open'] and previous['close'] < previous['open']
     candle_bearish = latest['close'] < latest['open'] and previous['close'] > previous['open']
     super_volume = latest['volume'] > df['volume'].rolling(20).mean().iloc[-1] * 1.5
     adx_filter = latest['adx'] > 15
+
     trend_up = latest['close'] > latest['ma200']
     trend_down = latest['close'] < latest['ma200']
+
     breakout_up = latest['close'] > latest['bb_upper'] and candle_bullish and super_volume and adx_filter
     breakout_down = latest['close'] < latest['bb_lower'] and candle_bearish and super_volume and adx_filter
+
     ema_cross_up = latest['ema20'] > latest['ema100'] and df['ema20'].iloc[-2] < df['ema100'].iloc[-2] and latest['rsi'] > 50
     ema_cross_down = latest['ema20'] < latest['ema100'] and df['ema20'].iloc[-2] > df['ema100'].iloc[-2] and latest['rsi'] < 50
+
     rsi_extreme_long = latest['rsi'] < 30 and trend_up
     rsi_extreme_short = latest['rsi'] > 70 and trend_down
-
-    # Log chi tiết
-    print(f"📊 latest_close: {latest['close']}, bb_upper: {latest['bb_upper']}, bb_lower: {latest['bb_lower']}")
-    print(f"📈 breakout_up: {breakout_up}, breakout_down: {breakout_down}")
-    print(f"💥 super_volume: {super_volume}, adx_filter: {adx_filter}")
-    print(f"📊 ema_cross_up: {ema_cross_up}, ema_cross_down: {ema_cross_down}")
-    print(f"💡 RSI: {latest['rsi']} | RSI long: {rsi_extreme_long} | RSI short: {rsi_extreme_short}")
 
     long_condition = breakout_up or ema_cross_up or rsi_extreme_long
     short_condition = breakout_down or ema_cross_down or rsi_extreme_short
 
-    return long_condition, short_condition
+    # Debug log
+    print(f"\n📊 latest_close: {latest['close']}, bb_upper: {latest['bb_upper']}, bb_lower: {latest['bb_lower']}")
+    print(f"\n📈 breakout_up: {breakout_up}, breakout_down: {breakout_down}")
+    print(f"\n💥 super_volume: {super_volume}, adx_filter: {adx_filter}")
+    print(f"\n📊 ema_cross_up: {ema_cross_up}, ema_cross_down: {ema_cross_down}")
+    print(f"\n💡 RSI: {latest['rsi']} | RSI long: {rsi_extreme_long} | RSI short: {rsi_extreme_short}\n")
 
+    return long_condition, short_condition
 
 def place_order(direction, entry_price):
     quantity = calculate_quantity(entry_price)
