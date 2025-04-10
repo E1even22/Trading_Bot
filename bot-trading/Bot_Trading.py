@@ -106,7 +106,7 @@ def check_conditions(df):
     print(f"📈 breakout_up: {breakout_up}, breakout_down: {breakout_down}")
     print(f"💥 super_volume: {super_volume}, adx_filter: {adx_filter}")
     print(f"📊 ema_cross_up: {ema_cross_up}, ema_cross_down: {ema_cross_down}")
-    print(f"💡 RSI: {latest['rsi']} | RSI long: {rsi_extreme_long} | RSI short: {rsi_extreme_short}\n")
+    print(f"💡 RSI: {latest['rsi']} | RSI long: {rsi_extreme_long} | RSI short: {rsi_extreme_short}")
     print(f"============================")
 
     return long_condition, short_condition
