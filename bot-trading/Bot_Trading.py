@@ -73,29 +73,28 @@ def check_conditions(df):
     previous = df.iloc[-2]
 
     # Các điều kiện breakout
-    candle_bullish = latest['close'] > latest['open'] and previous['close'] < previous['open'] and latest['close'] > previous['open'] and latest['open'] < previous['close']
-    candle_bearish = latest['close'] < latest['open'] and previous['close'] > previous['open'] and latest['close'] < previous['open'] and latest['open'] > previous['close']
+    candle_bullish = latest['close'] > latest['open'] and previous['close'] < previous['open']
+    candle_bearish = latest['close'] < latest['open'] and previous['close'] > previous['open']
     super_volume = latest['volume'] > df['volume'].rolling(20).mean().iloc[-1] * 1.5
     adx_filter = latest['adx'] > 15
 
     trend_up = latest['close'] > latest['ma200']
     trend_down = latest['close'] < latest['ma200']
 
-    breakout_up = latest['close'] > latest['bb_upper'] and candle_bullish and super_volume and adx_filter and (trend_up or latest['rsi'] > 55)
-    breakout_down = latest['close'] < latest['bb_lower'] and candle_bearish and super_volume and adx_filter and (trend_down or latest['rsi'] < 45)
+    # Điều kiện breakout có thể nới lỏng để dễ vào hơn
+    breakout_up = latest['close'] > latest['bb_upper'] and candle_bullish and super_volume and adx_filter
+    breakout_down = latest['close'] < latest['bb_lower'] and candle_bearish and super_volume and adx_filter
 
-    # Điều kiện phụ
-    ema_cross_up = latest['ema20'] > latest['ema100'] and df['ema20'].iloc[-2] < df['ema100'].iloc[-2] and latest['rsi'] > 50 and latest['close'] > latest['ema20'] and adx_filter
-    ema_cross_down = latest['ema20'] < latest['ema100'] and df['ema20'].iloc[-2] > df['ema100'].iloc[-2] and latest['rsi'] < 50 and latest['close'] < latest['ema20'] and adx_filter
+    # Điều kiện phụ có thể thêm vào hoặc bỏ bớt tùy ý
+    ema_cross_up = latest['ema20'] > latest['ema100'] and df['ema20'].iloc[-2] < df['ema100'].iloc[-2] and latest['rsi'] > 50
+    ema_cross_down = latest['ema20'] < latest['ema100'] and df['ema20'].iloc[-2] > df['ema100'].iloc[-2] and latest['rsi'] < 50
 
+    # Tín hiệu mạnh từ RSI cực đoan có thể bị bỏ bớt hoặc nới lỏng điều kiện
     rsi_extreme_long = latest['rsi'] < 30 and trend_up
     rsi_extreme_short = latest['rsi'] > 70 and trend_down
 
-    strong_bullish = candle_bullish and super_volume and latest['close'] > previous['high'] and latest['rsi'] > 60 and latest['plus_di'] > latest['minus_di']
-    strong_bearish = candle_bearish and super_volume and latest['close'] < previous['low'] and latest['rsi'] < 40 and latest['minus_di'] > latest['plus_di']
-
-    long_condition = breakout_up or ema_cross_up or rsi_extreme_long or strong_bullish
-    short_condition = breakout_down or ema_cross_down or rsi_extreme_short or strong_bearish
+    long_condition = breakout_up or ema_cross_up or rsi_extreme_long
+    short_condition = breakout_down or ema_cross_down or rsi_extreme_short
 
     return long_condition, short_condition
 
