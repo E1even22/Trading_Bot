@@ -8,6 +8,9 @@ from ta.momentum import RSIIndicator
 from dotenv import load_dotenv
 import os
 
+# 🛠️ Thêm dòng này để định nghĩa loại lệnh trailing stop
+ORDER_TYPE_TRAILING_STOP_MARKET = "TRAILING_STOP_MARKET"
+
 # Load API từ .env
 load_dotenv()
 api_key = os.getenv('API_KEY')
@@ -120,8 +123,8 @@ def place_order(direction, entry_price):
         quantity=quantity
     )
 
-    # Trailing stop thay vì dừng lỗ tĩnh
-    trailing_stop_callback = round(trailing_buffer * 100, 1)  # Binance yêu cầu callbackRate từ 0.1 đến 5%
+    # Trailing stop
+    trailing_stop_callback = round(trailing_buffer * 100, 1)
     activation_price = entry_price * (1 + trailing_start) if direction == "LONG" else entry_price * (1 - trailing_start)
 
     client.futures_create_order(
@@ -135,7 +138,7 @@ def place_order(direction, entry_price):
         reduceOnly=True
     )
 
-    # Lệnh chốt lời
+    # Take profit
     tp_price = entry_price * (1 + tp_pct) if direction == "LONG" else entry_price * (1 - tp_pct)
     client.futures_create_order(
         symbol=symbol,
