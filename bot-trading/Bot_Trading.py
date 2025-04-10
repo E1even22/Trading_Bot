@@ -103,11 +103,11 @@ def check_conditions(df):
 
     # Debug log
     print(f"\n📊 latest_close: {latest['close']}, bb_upper: {latest['bb_upper']}, bb_lower: {latest['bb_lower']}")
-    print(f"\n📈 breakout_up: {breakout_up}, breakout_down: {breakout_down}")
-    print(f"\n💥 super_volume: {super_volume}, adx_filter: {adx_filter}")
-    print(f"\n📊 ema_cross_up: {ema_cross_up}, ema_cross_down: {ema_cross_down}")
-    print(f"\n💡 RSI: {latest['rsi']} | RSI long: {rsi_extreme_long} | RSI short: {rsi_extreme_short}\n")
-    print(f"\t============================")
+    print(f"📈 breakout_up: {breakout_up}, breakout_down: {breakout_down}")
+    print(f"💥 super_volume: {super_volume}, adx_filter: {adx_filter}")
+    print(f"📊 ema_cross_up: {ema_cross_up}, ema_cross_down: {ema_cross_down}")
+    print(f"💡 RSI: {latest['rsi']} | RSI long: {rsi_extreme_long} | RSI short: {rsi_extreme_short}\n")
+    print(f"============================")
 
     return long_condition, short_condition
 
