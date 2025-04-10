@@ -35,7 +35,6 @@ max_open_trades = 10
 tick_size = 0.1
 step_size = 0.001
 
-client = Client(API_KEY, API_SECRET)
 open_positions = []
 
 # ===== HÀM HỖ TRỢ =====
