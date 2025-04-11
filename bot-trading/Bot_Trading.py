@@ -6,9 +6,11 @@ from ta.volatility import BollingerBands
 from ta.trend import EMAIndicator, SMAIndicator, ADXIndicator
 from ta.momentum import RSIIndicator
 from dotenv import load_dotenv
-from decimal import Decimal, ROUND_DOWN
+from decimal import Decimal
+from decimal import ROUND_DOWN
 import os
-import requests
+
+# 🛠️ Thêm dòng này để định nghĩa loại lệnh trailing stop
 ORDER_TYPE_TRAILING_STOP_MARKET = "TRAILING_STOP_MARKET"
 
 # Load API từ .env
@@ -16,13 +18,8 @@ load_dotenv()
 api_key = os.getenv('API_KEY')
 api_secret = os.getenv('API_SECRET')
 
-print("IP đang dùng để gọi API:", requests.get("https://api64.ipify.org").text)
-print(requests.get("https://api64.ipify.org").text)
 client = Client(api_key, api_secret, testnet=True)
 
-# Kiểm tra tài khoản futures
-account_info = client.futures_account()
-print("✅ Kết nối thành công! Số dư USDT hiện tại:", account_info['totalWalletBalance'])
 
 # === Cấu hình chiến lược ===
 symbol = "BTCUSDT"
@@ -114,8 +111,8 @@ def check_conditions(df):
 
     candle_bullish = latest['close'] > latest['open'] and previous['close'] < previous['open']
     candle_bearish = latest['close'] < latest['open'] and previous['close'] > previous['open']
-    super_volume = latest['volume'] > df['volume'].rolling(20).mean().iloc[-1] * 1.0
-    adx_filter = latest['adx'] > 10
+    super_volume = latest['volume'] > df['volume'].rolling(20).mean().iloc[-1] * 1.2
+    adx_filter = latest['adx'] > 15
     trend_up = latest['close'] > latest['ma200']
     trend_down = latest['close'] < latest['ma200']
 
@@ -123,8 +120,8 @@ def check_conditions(df):
     breakout_down = latest['close'] < latest['bb_lower'] and candle_bearish and super_volume and adx_filter
     ema_cross_up = latest['ema20'] > latest['ema100'] and df['ema20'].iloc[-2] < df['ema100'].iloc[-2] and latest['rsi'] > 50
     ema_cross_down = latest['ema20'] < latest['ema100'] and df['ema20'].iloc[-2] > df['ema100'].iloc[-2] and latest['rsi'] < 50
-    rsi_extreme_long = latest['rsi'] < 40 and trend_up
-    rsi_extreme_short = latest['rsi'] > 60 and trend_down
+    rsi_extreme_long = latest['rsi'] < 30 and trend_up
+    rsi_extreme_short = latest['rsi'] > 70 and trend_down
 
     long_condition = breakout_up or ema_cross_up or rsi_extreme_long
     short_condition = breakout_down or ema_cross_down or rsi_extreme_short
@@ -138,7 +135,52 @@ def check_conditions(df):
 
     return long_condition, short_condition
 
-# === Vòng lặp kiểm tra tín hiệu (không vào lệnh) ===
+# === Đặt lệnh ===
+def place_order(direction, entry_price):
+    quantity = calculate_quantity(entry_price)
+    side = SIDE_BUY if direction == "LONG" else SIDE_SELL
+    opposite_side = SIDE_SELL if direction == "LONG" else SIDE_BUY
+
+    print(f"[ORDER] {direction} | Entry: {entry_price}, Qty: {quantity}")
+
+    # Lệnh thị trường
+    client.futures_create_order(
+        symbol=symbol,
+        side=side,
+        type=ORDER_TYPE_MARKET,
+        quantity=quantity
+    )
+
+    # Lệnh trailing stop
+    trailing_stop_callback = round(trailing_buffer * 100, 1)
+    activation_price = entry_price * (1 + trailing_start) if direction == "LONG" else entry_price * (1 - trailing_start)
+    activation_price = round_step(activation_price, tick_size)
+
+    client.futures_create_order(
+        symbol=symbol,
+        side=opposite_side,
+        type=ORDER_TYPE_TRAILING_STOP_MARKET,
+        quantity=quantity,
+        activationPrice=activation_price,
+        callbackRate=trailing_stop_callback,
+        timeInForce=TIME_IN_FORCE_GTC,
+        reduceOnly=True
+    )
+
+    # Lệnh chốt lời
+    tp_price = entry_price * (1 + tp_pct) if direction == "LONG" else entry_price * (1 - tp_pct)
+    tp_price = round_step(tp_price, tick_size)
+    client.futures_create_order(
+        symbol=symbol,
+        side=opposite_side,
+        type=ORDER_TYPE_LIMIT,
+        price=tp_price,
+        quantity=quantity,
+        timeInForce=TIME_IN_FORCE_GTC,
+        reduceOnly=True
+    )
+
+# === Vòng lặp chính ===
 while True:
     try:
         df = get_klines(symbol, interval, limit=250)
@@ -149,9 +191,11 @@ while True:
 
         if open_trades < max_open_trades:
             if long_cond:
-                print(f"🚨 [Tín hiệu] GỢI Ý MỞ LỆNH LONG tại {current_price}")
+                print("🚀 Tín hiệu LONG hợp lệ")
+                place_order("LONG", current_price)
             elif short_cond:
-                print(f"🚨 [Tín hiệu] GỢI Ý MỞ LỆNH SHORT tại {current_price}")
+                print("🔻 Tín hiệu SHORT hợp lệ")
+                place_order("SHORT", current_price)
             else:
                 print("⏸️ Không có tín hiệu đủ điều kiện.")
         else:
