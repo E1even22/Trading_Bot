@@ -6,20 +6,16 @@ from ta.volatility import BollingerBands
 from ta.trend import EMAIndicator, SMAIndicator, ADXIndicator
 from ta.momentum import RSIIndicator
 from dotenv import load_dotenv
-from decimal import Decimal
-from decimal import ROUND_DOWN
+from decimal import Decimal, ROUND_DOWN
 import os
 
-# 🛠️ Thêm dòng này để định nghĩa loại lệnh trailing stop
 ORDER_TYPE_TRAILING_STOP_MARKET = "TRAILING_STOP_MARKET"
 
 # Load API từ .env
 load_dotenv()
 api_key = os.getenv('API_KEY')
 api_secret = os.getenv('API_SECRET')
-
 client = Client(api_key, api_secret, testnet=True)
-
 
 # === Cấu hình chiến lược ===
 symbol = "BTCUSDT"
@@ -135,52 +131,7 @@ def check_conditions(df):
 
     return long_condition, short_condition
 
-# === Đặt lệnh ===
-def place_order(direction, entry_price):
-    quantity = calculate_quantity(entry_price)
-    side = SIDE_BUY if direction == "LONG" else SIDE_SELL
-    opposite_side = SIDE_SELL if direction == "LONG" else SIDE_BUY
-
-    print(f"[ORDER] {direction} | Entry: {entry_price}, Qty: {quantity}")
-
-    # Lệnh thị trường
-    client.futures_create_order(
-        symbol=symbol,
-        side=side,
-        type=ORDER_TYPE_MARKET,
-        quantity=quantity
-    )
-
-    # Lệnh trailing stop
-    trailing_stop_callback = round(trailing_buffer * 100, 1)
-    activation_price = entry_price * (1 + trailing_start) if direction == "LONG" else entry_price * (1 - trailing_start)
-    activation_price = round_step(activation_price, tick_size)
-
-    client.futures_create_order(
-        symbol=symbol,
-        side=opposite_side,
-        type=ORDER_TYPE_TRAILING_STOP_MARKET,
-        quantity=quantity,
-        activationPrice=activation_price,
-        callbackRate=trailing_stop_callback,
-        timeInForce=TIME_IN_FORCE_GTC,
-        reduceOnly=True
-    )
-
-    # Lệnh chốt lời
-    tp_price = entry_price * (1 + tp_pct) if direction == "LONG" else entry_price * (1 - tp_pct)
-    tp_price = round_step(tp_price, tick_size)
-    client.futures_create_order(
-        symbol=symbol,
-        side=opposite_side,
-        type=ORDER_TYPE_LIMIT,
-        price=tp_price,
-        quantity=quantity,
-        timeInForce=TIME_IN_FORCE_GTC,
-        reduceOnly=True
-    )
-
-# === Vòng lặp chính ===
+# === Vòng lặp kiểm tra tín hiệu (không vào lệnh) ===
 while True:
     try:
         df = get_klines(symbol, interval, limit=250)
@@ -191,11 +142,9 @@ while True:
 
         if open_trades < max_open_trades:
             if long_cond:
-                print("🚀 Tín hiệu LONG hợp lệ")
-                place_order("LONG", current_price)
+                print(f"🚨 [Tín hiệu] GỢI Ý MỞ LỆNH LONG tại {current_price}")
             elif short_cond:
-                print("🔻 Tín hiệu SHORT hợp lệ")
-                place_order("SHORT", current_price)
+                print(f"🚨 [Tín hiệu] GỢI Ý MỞ LỆNH SHORT tại {current_price}")
             else:
                 print("⏸️ Không có tín hiệu đủ điều kiện.")
         else:
