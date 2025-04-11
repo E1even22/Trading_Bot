@@ -8,13 +8,15 @@ from ta.momentum import RSIIndicator
 from dotenv import load_dotenv
 from decimal import Decimal, ROUND_DOWN
 import os
-
+import requests
 ORDER_TYPE_TRAILING_STOP_MARKET = "TRAILING_STOP_MARKET"
 
 # Load API từ .env
 load_dotenv()
 api_key = os.getenv('API_KEY')
 api_secret = os.getenv('API_SECRET')
+
+print("IP đang dùng để gọi API:", requests.get("https://api64.ipify.org").text)
 client = Client(api_key, api_secret)
 
 # Kiểm tra tài khoản futures
