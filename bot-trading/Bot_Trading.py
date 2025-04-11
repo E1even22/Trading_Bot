@@ -17,6 +17,10 @@ api_key = os.getenv('API_KEY')
 api_secret = os.getenv('API_SECRET')
 client = Client(api_key, api_secret)
 
+# Kiểm tra tài khoản futures
+account_info = client.futures_account()
+print("✅ Kết nối thành công! Số dư USDT hiện tại:", account_info['totalWalletBalance'])
+
 # === Cấu hình chiến lược ===
 symbol = "BTCUSDT"
 interval = "5m"
